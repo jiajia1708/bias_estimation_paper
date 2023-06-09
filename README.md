@@ -3,5 +3,4 @@ This folder provides all the codes for downloading, processing data and plotting
 DOI:
 
 [![DOI](https://zenodo.org/badge/651306283.svg)](https://zenodo.org/badge/latestdoi/651306283)
-.. image:: https://zenodo.org/badge/651306283.svg
-   :target: https://zenodo.org/badge/latestdoi/651306283
+
