@@ -1,0 +1,271 @@
+;;----------------------------------- 2D Cross-section of COSMIC2 data -----------------------------------------------;;
+;; This code is to create net-cdf4 files for data extracted from FS7 for efficient works       				          ;;
+;;                                                                                                     				  ;;
+;;                                                                           Written by Pham Gia Huan 2022/01/12      ;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+load "$NCARG_ROOT/lib/ncarg/nclscripts/csm/gsn_code.ncl"
+load "$NCARG_ROOT/lib/ncarg/nclscripts/csm/gsn_csm.ncl"
+load "$NCARG_ROOT/lib/ncarg/nclscripts/csm/contributed.ncl"
+
+begin
+
+
+;---------------------------------ADD FILES--------------------------------------
+;dir1 = "/work1/jiajia1708/data-2/TACC/atmPrf/2020/allfiles2/"
+;dir2 = "/work1/jiajia1708/data-2/TACC/echPrf/2020/allfiles/"
+;dir3 = "/work1/jiajia1708/data-2/TACC/wetPf2/2020/allfiles/" 
+
+dir1 = "/work1/jiajia1708/data-2/TACC/atmPrf/2020/allfiles/"
+;dir2 = "/work1/jiajia1708/data-2/TACC/echPrf/2020/allfiles/"
+dir3 = "/work1/jiajia1708/data-2/TACC/wetPf2/QC-2020/allfiles/" 
+
+;dir1 = "/work1/jiajia1708/data/TACC/atmPrf/2020/allfiles/"
+;dir2 = "/work1/jiajia1708/data/TACC/echPrf/2020/allfiles/"
+;dir3 = "/work1/jiajia1708/data/TACC/wetPf2/QC-2020/allfiles/"
+;dir1 = "/work1/jiajia1708/data/TACC/atmPrf/2020/all-oceans/"
+;dir2 = "/work1/jiajia1708/data/TACC/echPrf/2020/all-oceans/"
+;dir3 = "/work1/jiajia1708/data/TACC/wetPf2/QC-2020/all-oceans/"
+;dir1 = "/work1/jiajia1708/data/TACC/atmPrf/2020/all-lands/"
+;dir2 = "/work1/jiajia1708/data/TACC/echPrf/2020/all-lands/"
+;dir3 = "/work1/jiajia1708/data/TACC/wetPf2/QC-2020/all-lands/"
+
+dirx ="/work1/jiajia1708/scripts/ncl_scripts"
+setfileoption("nc", "Format",  "NetCDF4")
+
+fn = "/work1/jiajia1708/data/TACC/echPrf/2020/2020.153/C2E6.2020.153.23.57.G26_0001.0001_nc"
+fr = addfile(fn, "r")
+
+
+files_a = systemfunc ("cd "+dir1+" ;ls *.0001_nc")
+files_w = systemfunc ("cd "+dir3+" ;ls *.0001_nc") 
+nfile_a = dimsizes(files_a)
+
+refRO = new((/85,nfile_a/), double)
+presRO = new((/85,nfile_a/), double)
+baOmB  = new((/85,nfile_a/), double)
+lswPctg = new((/85,nfile_a/), double)
+Lat     = new((/85,nfile_a/), double)
+Lon     = new((/85,nfile_a/), double)
+Temp   = new((/85,nfile_a/), double)
+sph     = new((/85,nfile_a/), double)
+hourRO    = new((/85,nfile_a/), double)
+minuteRO    = new((/85,nfile_a/), double)
+secondRO    = new((/85,nfile_a/), double)
+dayRO    = new((/85,nfile_a/), double)
+monthRO    = new((/85,nfile_a/), double)
+yearRO    = new((/85,nfile_a/), double) 
+;---Add variables
+
+Prof_num = ispan (1,nfile_a,1)
+MSL_alt = fr->MSL_alt(0:84)	
+
+do nf=0,nfile_a-1
+    f1          = addfile(dir1+files_a(nf), "r") 
+    f3          = addfile(dir3+files_w(nf), "r")
+
+	z1          = flt2dble(f1->MSL_alt)
+	z3          = f3->MSL_alt
+    
+    ba          = f1->Bend_ang
+
+	ref         = flt2dble(f1->Ref)
+		
+	temp        = flt2dble(f3->Temp)
+
+    presatmPrf        = flt2dble(f1->Pres)
+
+	lat         = flt2dble(f1->Lat)
+    
+    lon         = flt2dble(f1->Lon)
+
+    lsw         = flt2dble(f1->Bend_ang_stdv)	
+
+    pres        = flt2dble(f3->Pres)
+	vp          = flt2dble(f3->Vp)
+	
+	attname1 = "hour" 
+    attname2 = "minute"  
+    attname3 = "second"      
+    attname4 = "day"
+    attname5 = "month"
+    attname6 = "year"
+  
+	hour = f1@$attname1$
+    minute  = f1@$attname2$
+    second = f1@$attname3$
+    day  = f1@$attname4$
+    month = f1@$attname5$
+    year = f1@$attname6$
+		
+		
+;---Calculation of variables
+	z1 = z1(::-1)
+	lsw = lsw(::-1)
+	ba = ba(::-1)
+	ref = ref(::-1)	
+    lat = lat(::-1)	
+    lon = lon(::-1)	
+    presatmPrf = presatmPrf(::-1)
+     
+
+	ban = linint1_n_Wrap(z1,ba,False,MSL_alt,0,0)
+	delete(ba)
+
+
+	ba_singleRO      = ban(0:84)
+
+    refn        = linint1_n_Wrap(z1,ref,False,MSL_alt,0,0)
+	delete(ref)
+
+	ref_singleRO         = refn(0:84)
+ 
+    lswn        = linint1_n_Wrap(z1,lsw,False,MSL_alt,0,0)/2
+	lsw_percent = 100*lswn/where(ban.ne.0, ban, ban@_FillValue)
+	ref_qc      = avg(refn(0:84))
+	delete(lsw)
+
+    latn        = linint1_n_Wrap(z1,lat,False,MSL_alt,0,0)
+	delete(lat)
+
+    lonn        = linint1_n_Wrap(z1,lon,False,MSL_alt,0,0)
+
+    tempn      = linint1_n_Wrap(z3,temp,False,MSL_alt,0,0)
+    delete(temp)
+    T = tempn
+
+    presn        = linint1_n_Wrap(z1,presatmPrf,False,MSL_alt,0,0)
+	delete(presatmPrf)
+
+	e = abs(linint1_n_Wrap(z3,vp,False,MSL_alt,0,0))
+	delete(vp)
+	p = abs(linint1_n_Wrap(z3,pres,False,MSL_alt,0,0))
+	delete(pres)
+	;wetrh = abs(linint1_n_Wrap(z3,wetrhraw,False,zr,0,0))
+	;delete(wetrhraw)
+	;----Saturation Vapor Pressure es
+	a= 17.2693882
+	b= 35.86
+	es = 6.1078*exp((a*T)/((T+273.16)-b))	
+	q = 1000*(0.622*e)/(p-0.378*e)							  ;    value of specific humidity
+	delete(lon)
+    delete(z1)
+    delete(z3)
+    
+
+    refRO(:,nf) = ref_singleRO
+    baOmB(:,nf)  = ba_singleRO
+    lswPctg(:,nf) = lsw_percent
+    presRO(:,nf) = presn
+    Lat(:,nf)     = latn
+    Lon(:,nf)     = lonn
+    Temp(:,nf)    = T
+    sph(:,nf)     = q
+    hourRO(:,nf)      = hour
+    minuteRO(:,nf)      = minute
+    secondRO(:,nf)      = second
+    dayRO(:,nf)      = day
+    monthRO(:,nf)      = month
+    yearRO(:,nf)      = year
+end do 
+
+;---Get dimension sizes
+
+    var_type    = "double"
+    nMSL_alt    = dimsizes(MSL_alt)
+    nlat        = dimsizes(Lat) 
+    nlon        = dimsizes(Lon)
+    nProf_num   = dimsizes(Prof_num)
+    nrefPctg    = dimsizes(refRO)
+    nbaPctg     = dimsizes(baOmB) 
+    npresRO     = dimsizes(presRO)
+    nhourRO     = dimsizes(hourRO) 
+    nminuteRO   = dimsizes(minuteRO) 
+    nsecondRO   = dimsizes(secondRO) 
+    ndayRO      = dimsizes(dayRO) 
+    nmonthRO    = dimsizes(monthRO) 
+    nyearRO      = dimsizes(yearRO) 
+
+
+;---Open a new NetCDF file to write to 
+    setfileoption("nc", "Format",  "NetCDF4")
+    fon = "JANFEB_RO.nc"
+    system("/bin/rm -f " + fon) ; remove if exists
+    fo = addfile(fon, "c")
+
+    setfileoption(fo,"DefineMode",True)
+    fAtt               = True            ; assign file attributes
+    fAtt@title         = "FS7 recalculated dataset for JAN to FEB"
+    fAtt@source_file   = fn
+    fAtt@Conventions   = "None"
+    fAtt@creation_date = systemfunc ("date")
+    fileattdef(fo, fAtt)      ; copy file attributes
+
+;---Define the dimension names and their sizes on the file 
+    dimNames = (/ "MSL_alt", "Prof_num"/)  
+	dimSizes = (/ nMSL_alt , nProf_num/) 
+	dimUnlim = (/ False, False /)   
+	filedimdef(fo,dimNames,dimSizes,dimUnlim) 
+ 
+    value = new((/nMSL_alt, nProf_num/), double)
+    value@name = "value"
+    value!0 = "MSL_alt"
+    value!1 = "Prof_num"
+
+    value2 = new((/nProf_num/), double)
+    value@name = "value"
+    value2!0 = "Prof_num"
+    
+;---Define each variable, its type, its dimension names, and its size
+    filevardef(fo, "MSL_alt"  ,typeof(MSL_alt),getvardims(MSL_alt))
+    filevardef(fo, "Lat"  ,typeof(value),getvardims(value))
+    filevardef(fo, "Lon"  ,typeof(value),getvardims(value))
+    filevardef(fo, "Prof_num"  ,typeof(value2),getvardims(value2))
+    filevardef(fo, "refRO" ,typeof(value),getvardims(value)) 
+    filevardef(fo, "presRO" ,typeof(value),getvardims(value))
+    filevardef(fo, "baOmB" ,typeof(value),getvardims(value)) 
+    filevardef(fo, "lswPctg" ,typeof(value),getvardims(value)) 
+    filevardef(fo, "sph" ,typeof(value),getvardims(value)) 
+    filevardef(fo, "Temp" ,typeof(value),getvardims(value))
+    filevardef(fo, "hourRO" ,typeof(value2),getvardims(value2))
+    filevardef(fo, "minuteRO" ,typeof(value2),getvardims(value2))
+    filevardef(fo, "secondRO" ,typeof(value2),getvardims(value2))
+    filevardef(fo, "dayRO" ,typeof(value2),getvardims(value2))
+    filevardef(fo, "monthRO" ,typeof(value2),getvardims(value2))
+    filevardef(fo, "yearRO" ,typeof(value2),getvardims(value2))
+
+;---Define each variable's attributes
+    filevarattdef(fo,"MSL_alt",MSL_alt)
+    filevarattdef(fo,"Lat",Lat)
+    filevarattdef(fo,"Lon",Lon)
+    filevarattdef(fo,"Prof_num",Prof_num) 
+    filevarattdef(fo,"baOmB",baOmB)
+    filevarattdef(fo,"lswPctg",lswPctg)
+    filevarattdef(fo,"sph",sph)
+    filevarattdef(fo,"Temp",Temp)
+    filevarattdef(fo,"presRO",presRO)
+    filevarattdef(fo,"hourRO",hourRO)
+    filevarattdef(fo,"minuteRO",minuteRO)
+    filevarattdef(fo,"secondRO",secondRO)
+    filevarattdef(fo,"dayRO",dayRO)
+    filevarattdef(fo,"monthRO",monthRO)
+    filevarattdef(fo,"yearRO",yearRO)
+
+;---NOW write the variables to the file.
+    fo->MSL_alt  = (/MSL_alt/)
+    fo->Prof_num  = (/Prof_num/)
+    fo->Lat  = (/Lat/)
+    fo->Lon  = (/Lon/)
+    fo->refRO  = (/refRO/) 
+    fo->baOmB  = (/baOmB/)
+    fo->lswPctg  = (/lswPctg/)
+    fo->sph  = (/sph/)
+    fo->presRO  = (/presRO/)
+    fo->Temp  = (/Temp/)
+    fo->hourRO  = (/hourRO/)
+    fo->minuteRO  = (/minuteRO/)
+    fo->secondRO  = (/secondRO/)
+    fo->dayRO  = (/dayRO/)
+    fo->monthRO  = (/monthRO/)
+    fo->yearRO  = (/yearRO/)
+end
